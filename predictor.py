@@ -1,12 +1,17 @@
+from season import Season
 from teams import Team
 
 
 class Predictor:
-    def __init__(self):
+    """
+        Predictor class containing main API for game predictions.
+    """
+
+    def __init__(self, seasons: [Season]):
         self.default_probability: float = 0.5
-    """
-    Predictor class containing main API for game predictions.
-    """
+        self.seasons = seasons
+
+    # def train(self):
 
     """
     Outputs the probability of team_1 winning vs. team_2 for a specific year.

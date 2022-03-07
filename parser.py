@@ -1,20 +1,46 @@
 import csv, logging
 
+from game import Game
+from season import Season
 from teams import Team
+
+from sklearn.neural_network import MLPClassifier
 
 
 class Parser:
     def __init__(self):
-        self.filename = 'resources/MTeams.csv'
+        self.path = 'resources/'
         self.logger = self._get_logger()
 
     @staticmethod
     def _get_logger():
         return logging.getLogger(__name__)
 
+    def parse(self):
+        # teams = self.parse_teams()
+        regular_seasons_games = self.parse_regular_seasons_games()
+        tournaments_games = self.parse_tournaments_games()
+        seasons = self.parse_seasons(regular_seasons_games, tournaments_games)
+
+        X, y = seasons[1985].get_match_ups_features()
+        for year in range(1986, 2016):
+            XX, yy = seasons[year].get_match_ups_features()
+            X.extend(XX)
+            y.extend(yy)
+
+        # self.logger.info(X)
+        # self.logger.info(y)
+        layer_sizes = len(X[0])
+        hidden_layer_sizes = (layer_sizes, layer_sizes)
+        classifier = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=1000)
+
+        classifier.fit(X, y)
+        probabilities = classifier.predict_proba([[1, 0]])
+        self.logger.info(f"Win probability = {probabilities[0][1]}")
+
     def parse_teams(self) -> [Team]:
         teams: [Team] = []
-        with open(self.filename) as teams_csv:
+        with open(self.path + 'MTeams.csv') as teams_csv:
             csv_reader = csv.reader(teams_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:
@@ -29,3 +55,79 @@ class Parser:
                 line_count += 1
             self.logger.info(f'Processed {line_count - 1} teams.')
         return teams
+
+    def parse_seasons(self, regular_seasons_games: [Game], tournaments_games: [Game]):
+        seasons: dict[int, Season] = {}
+        with open(self.path + 'MSeasons.csv') as seasons_csv:
+            csv_reader = csv.reader(seasons_csv, delimiter=',')
+            line_count: int = 0
+            for row in csv_reader:
+                if line_count == 0:
+                    self.logger.info(f'Column names are {", ".join(row)}')
+                else:
+                    year = int(row[0])
+                    day_zero = row[1]
+                    region_w = row[2]
+                    region_x = row[3]
+                    region_y = row[4]
+                    region_z = row[5]
+                    if year not in seasons:
+                        seasons[year] = []
+                    regular_season_games = regular_seasons_games[year]
+                    tournament_games = []
+                    if year in tournaments_games:
+                        tournament_games = tournaments_games[year]
+                    seasons[year] = Season(year, day_zero, regular_season_games, tournament_games, region_w, region_x,
+                                           region_y
+                                           , region_z)
+                line_count += 1
+            self.logger.info(f'Processed {line_count - 1} seasons.')
+        return seasons
+
+    def parse_regular_seasons_games(self):
+        games: dict[int, Game] = {}
+        with open(self.path + 'MRegularSeasonCompactResults.csv') as seasons_csv:
+            csv_reader = csv.reader(seasons_csv, delimiter=',')
+            line_count: int = 0
+            for row in csv_reader:
+                if line_count == 0:
+                    self.logger.info(f'Column names are {", ".join(row)}')
+                else:
+                    year: int = int(row[0])
+                    day_num: int = int(row[1])
+                    w_team_id: str = row[2]
+                    w_score: int = int(row[3])
+                    l_team_id: str = row[4]
+                    l_score: int = int(row[5])
+                    w_loc: str = row[6]
+                    num_ot: int = int(row[7])
+                    if year not in games:
+                        games[year] = []
+                    games[year].append(Game(year, day_num, w_team_id, w_score, l_team_id, l_score, w_loc, num_ot))
+                line_count += 1
+            self.logger.info(f'Processed {line_count - 1} games.')
+        return games
+
+    def parse_tournaments_games(self):
+        games: dict[int, Game] = {}
+        with open(self.path + 'MNCAATourneyCompactResults.csv') as seasons_csv:
+            csv_reader = csv.reader(seasons_csv, delimiter=',')
+            line_count: int = 0
+            for row in csv_reader:
+                if line_count == 0:
+                    self.logger.info(f'Column names are {", ".join(row)}')
+                else:
+                    year: int = int(row[0])
+                    day_num: int = int(row[1])
+                    w_team_id: str = row[2]
+                    w_score: int = int(row[3])
+                    l_team_id: str = row[4]
+                    l_score: int = int(row[5])
+                    w_loc: str = row[6]
+                    num_ot: int = int(row[7])
+                    if year not in games:
+                        games[year] = []
+                    games[year].append(Game(year, day_num, w_team_id, w_score, l_team_id, l_score, w_loc, num_ot))
+                line_count += 1
+            self.logger.info(f'Processed {line_count - 1} games.')
+        return games
