@@ -17,26 +17,11 @@ class Parser:
         return logging.getLogger(__name__)
 
     def parse(self):
-        # teams = self.parse_teams()
+        teams = self.parse_teams()
         regular_seasons_games = self.parse_regular_seasons_games()
         tournaments_games = self.parse_tournaments_games()
-        seasons = self.parse_seasons(regular_seasons_games, tournaments_games)
-
-        X, y = seasons[1985].get_match_ups_features()
-        for year in range(1986, 2016):
-            XX, yy = seasons[year].get_match_ups_features()
-            X.extend(XX)
-            y.extend(yy)
-
-        # self.logger.info(X)
-        # self.logger.info(y)
-        layer_sizes = len(X[0])
-        hidden_layer_sizes = (layer_sizes, layer_sizes)
-        classifier = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=1000)
-
-        classifier.fit(X, y)
-        probabilities = classifier.predict_proba([[1, 0]])
-        self.logger.info(f"Win probability = {probabilities[0][1]}")
+        seasons = self.parse_seasons(regular_seasons_games, tournaments_games, teams)
+        return seasons, teams
 
     def parse_teams(self) -> [Team]:
         teams: [Team] = []
@@ -47,7 +32,7 @@ class Parser:
                 if line_count == 0:
                     self.logger.info(f'Column names are {", ".join(row)}')
                 else:
-                    team_id: str = row[0]
+                    team_id: int = int(row[0])
                     team_name: str = row[1]
                     first_d1_season: int = int(row[2])
                     last_d1_season: int = int(row[3])
@@ -56,7 +41,7 @@ class Parser:
             self.logger.info(f'Processed {line_count - 1} teams.')
         return teams
 
-    def parse_seasons(self, regular_seasons_games: [Game], tournaments_games: [Game]):
+    def parse_seasons(self, regular_seasons_games: [Game], tournaments_games: [Game], teams: [Team]):
         seasons: dict[int, Season] = {}
         with open(self.path + 'MSeasons.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
@@ -77,9 +62,9 @@ class Parser:
                     tournament_games = []
                     if year in tournaments_games:
                         tournament_games = tournaments_games[year]
-                    seasons[year] = Season(year, day_zero, regular_season_games, tournament_games, region_w, region_x,
-                                           region_y
-                                           , region_z)
+                    seasons[year] = Season(year, day_zero, regular_season_games,
+                                           tournament_games, region_w, region_x, region_y, region_z,
+                                           teams)
                 line_count += 1
             self.logger.info(f'Processed {line_count - 1} seasons.')
         return seasons
@@ -95,9 +80,9 @@ class Parser:
                 else:
                     year: int = int(row[0])
                     day_num: int = int(row[1])
-                    w_team_id: str = row[2]
+                    w_team_id: int = int(row[2])
                     w_score: int = int(row[3])
-                    l_team_id: str = row[4]
+                    l_team_id: int = int(row[4])
                     l_score: int = int(row[5])
                     w_loc: str = row[6]
                     num_ot: int = int(row[7])
@@ -119,9 +104,9 @@ class Parser:
                 else:
                     year: int = int(row[0])
                     day_num: int = int(row[1])
-                    w_team_id: str = row[2]
+                    w_team_id: int = int(row[2])
                     w_score: int = int(row[3])
-                    l_team_id: str = row[4]
+                    l_team_id: int = int(row[4])
                     l_score: int = int(row[5])
                     w_loc: str = row[6]
                     num_ot: int = int(row[7])
