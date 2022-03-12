@@ -1,12 +1,14 @@
 from typing import Dict
 
 from game import Game
-from prediction import Prediction, Classifier, NeuralNetworkClassifier
+from prediction import Prediction, Classifier, NeuralNetworkClassifier, FiftyFiftyClassifier, SeedsBasedClassifier
 from teams import Team
 from tournament import Tournament
+from seed import Seed
 from statistics import mean
 
 from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import MinMaxScaler
 
 
 class Season:
@@ -29,10 +31,10 @@ class Season:
     We refer to a season's year by using the year the NCAA tournament for that season was played (n+1 above).
     """
     def __init__(self, year: int, day_zero: str, regular_season_games: [Game],
-                 tournament_games: [Game], region_w: str, region_x: str, region_y: str, region_z: str,
+                 tournament_games: [Game], region_w: str, region_x: str, region_y: str, region_z: str, seeds: [Seed],
                  teams: [Team]):
         self.regular_season: RegularSeason = RegularSeason(year, day_zero, regular_season_games)
-        self.tournament: Tournament = Tournament(tournament_games, region_w, region_x, region_y, region_z)
+        self.tournament: Tournament = Tournament(tournament_games, region_w, region_x, region_y, region_z, seeds)
         self.teams: [Team] = teams
 
     """
@@ -55,10 +57,19 @@ class Season:
     We label the first set of feature with a 1 (first team won) and the second with a 0 (first team lost).
     """
     def get_match_up_features_and_labels(self, w_team_id: int, l_team_id: int):
-        # Poor set of features so far: only relying on the two teams regular season performance.
-        w_record = self.regular_season.get_record(w_team_id)
-        l_record = self.regular_season.get_record(l_team_id)
-        match_up_features = [[w_record, l_record], [l_record, w_record]]
+        w_team_seed_position = self.tournament.seeds[w_team_id].position
+        l_team_seed_position = self.tournament.seeds[l_team_id].position
+
+        w_team_average_points_allowed = self.regular_season.get_average_points_allowed(w_team_id)
+        l_team_average_points_allowed = self.regular_season.get_average_points_allowed(l_team_id)
+
+        w_team_average_points_scored = self.regular_season.get_average_points_scored(w_team_id)
+        l_team_average_points_scored = self.regular_season.get_average_points_scored(l_team_id)
+
+        match_up_features = [[w_team_seed_position, w_team_average_points_allowed, w_team_average_points_scored,
+                              l_team_seed_position, l_team_average_points_allowed, l_team_average_points_scored],
+                             [l_team_seed_position, l_team_average_points_allowed, l_team_average_points_scored,
+                              w_team_seed_position, w_team_average_points_allowed, w_team_average_points_scored]]
         match_up_labels = [1, 0]
 
         return match_up_features, match_up_labels
@@ -141,7 +152,7 @@ class Season:
         assert team_1_id != team_2_id, f"Cannot predict outcome of {team_1_id} vs. {team_2_id}, they're the " \
                                        f"same team"
         match_up_features = self.get_match_up_features(team_1_id, team_2_id)
-        predictions = classifier.predict_proba(match_up_features)
+        predictions = classifier.predict_proba(team_1_id, team_2_id, match_up_features)
 
         # First view is when we consider the team_1 vs. team_2 features: we retrieve the winning probability of team_1.
         first_view_win_prediction = predictions[0][1]
@@ -156,6 +167,12 @@ class Season:
     def year(self):
         return self.regular_season.year
 
+    """
+    Returns the classifier based on seeds heuristics.
+    """
+    def get_seeds_based_classifier(self) -> Classifier:
+        return SeedsBasedClassifier(self.tournament.seeds)
+
 
 class RegularSeason:
     """
@@ -169,6 +186,49 @@ class RegularSeason:
         self.year: int = year
         self.day_zero: str = day_zero
         self.regular_season_games: [Game] = regular_season_games
+
+        self.total_points_allowed: Dict[int, int] = {}
+        self.total_points_scored: Dict[int, int] = {}
+        self.number_games_played: Dict[int, int] = {}
+
+        for game in self.regular_season_games:
+            w_team_id = game.w_team_id
+            l_team_id = game.l_team_id
+
+            if w_team_id not in self.total_points_allowed:
+                self.total_points_allowed[w_team_id] = 0
+            if w_team_id not in self.total_points_scored:
+                self.total_points_scored[w_team_id] = 0
+            if w_team_id not in self.number_games_played:
+                self.number_games_played[w_team_id] = 0
+
+            if l_team_id not in self.total_points_allowed:
+                self.total_points_allowed[l_team_id] = 0
+            if l_team_id not in self.total_points_scored:
+                self.total_points_scored[l_team_id] = 0
+            if l_team_id not in self.number_games_played:
+                self.number_games_played[l_team_id] = 0
+
+            self.total_points_allowed[w_team_id] += game.l_score
+            self.total_points_allowed[l_team_id] += game.w_score
+            self.total_points_scored[w_team_id] += game.w_score
+            self.total_points_scored[l_team_id] += game.l_score
+            self.number_games_played[w_team_id] += 1
+            self.number_games_played[l_team_id] += 1
+
+        self.average_points_allowed: Dict[int, float] = {}
+        for team_id, total_points in self.total_points_allowed.items():
+            self.average_points_allowed[team_id] = total_points / self.number_games_played[team_id]
+
+        self.average_points_scored: Dict[int, float] = {}
+        for team_id, total_points in self.total_points_scored.items():
+            self.average_points_scored[team_id] = total_points / self.number_games_played[team_id]
+
+    def get_average_points_allowed(self, team_id: int) -> float:
+        return self.average_points_allowed[team_id]
+
+    def get_average_points_scored(self, team_id: int) -> float:
+        return self.average_points_scored[team_id]
 
     def get_record(self, team_id: int) -> float:
         assert type(team_id) == int, f"Team ID {team_id} is not an integer."
@@ -215,7 +275,7 @@ class Span:
     By concatenating all the seasons' features together (and similarly for all the labels), we
     can fit a classifier and return it for prediction purposes.
     """
-    def train(self) -> Classifier:
+    def train(self, max_iter: int = 1000) -> Classifier:
         span_features, span_labels = [], []
 
         # Concatenate each season's features and labels.
@@ -228,34 +288,56 @@ class Span:
         layer_size = len(span_features[0])
 
         # Two layers for now.
-        hidden_layer_sizes = (layer_size, layer_size)
+        hidden_layer_sizes = (layer_size, layer_size * 2, layer_size * 3, layer_size * 2, layer_size)
 
-        mlp_classifier = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=10000)
+        mlp_classifier = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=max_iter)
 
+        # TODO: Scale features for faster convergence.
         # TODO: Monitor the learning part with loading bar for Jupyter notebook.
         mlp_classifier.fit(span_features, span_labels)
 
         return NeuralNetworkClassifier(mlp_classifier)
 
     """
-    The predict API relies on a trained MLPClassifier instance to give predictions.
+    The predict API relies on a dictionary of classifiers indexed by the season's year (a classifier per season)
+    to give predictions. If a specific season doesn't have an entry in that dictionary, we use the 50/50 classifier. 
     
-    For each season in the span, we use the same provided classifier to predict the outcome
-    of every potential tournament match-up. 
-    
-    Be careful to always provide an MLPClassifier which was fitted on a span which does
+    Be careful to always provide a classifier which was fitted on a span which does
     not overlap with the span you predict on. Otherwise, your results may be biased towards
     your training seasons.
     """
-    def predict(self, classifier: Classifier) -> Dict:
+    def predict(self, classifiers: Dict = {}) -> Dict:
         # Map of season's year to predictions.
         span_predictions: Dict = {}
 
         for season in self.seasons:
-            season_predictions = season.predict(classifier)
+            season_classifier = classifiers.get(season.year, FiftyFiftyClassifier())
+            season_predictions = season.predict(season_classifier)
             span_predictions[season.year] = season_predictions
 
         return span_predictions
+
+    """
+    Returns exactly each season's seeds based classifier.
+    """
+    def get_seasons_seeds_based_classifiers(self) -> Dict[int, SeedsBasedClassifier]:
+        seasons_seeds_based_classifiers: Dict[int, SeedsBasedClassifier] = {}
+
+        for season in self.seasons:
+            seasons_seeds_based_classifiers[season.year] = season.get_seeds_based_classifier()
+
+        return seasons_seeds_based_classifiers
+
+    """
+    Returns a dictionary mapping each season to the same classifier, the one provided as input.
+    """
+    def build_seasons_classifiers_map(self, classifier: Classifier) -> Dict[int, Classifier]:
+        seasons_classifiers: Dict[int, Classifier] = {}
+
+        for season in self.seasons:
+            seasons_classifiers[season.year] = classifier
+
+        return seasons_classifiers
 
     """
     The score API takes in predictions for each of the seasons we want to score.

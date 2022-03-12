@@ -1,10 +1,13 @@
 import csv, logging
+from typing import Dict
 
 from game import Game
 from season import Season
 from teams import Team
 
 from sklearn.neural_network import MLPClassifier
+
+from seed import Seed
 
 
 class Parser:
@@ -20,8 +23,28 @@ class Parser:
         teams = self.parse_teams()
         regular_seasons_games = self.parse_regular_seasons_games()
         tournaments_games = self.parse_tournaments_games()
-        seasons = self.parse_seasons(regular_seasons_games, tournaments_games, teams)
+        seasons_seeds = self.parse_seeds()
+        seasons = self.parse_seasons(regular_seasons_games, tournaments_games, teams, seasons_seeds)
         return seasons, teams
+
+    def parse_seeds(self) -> Dict:
+        seasons_seeds: Dict = {}
+        with open(self.path + 'MNCAATourneySeeds.csv') as seeds_csv:
+            csv_reader = csv.reader(seeds_csv, delimiter=',')
+            line_count: int = 0
+            for row in csv_reader:
+                if line_count == 0:
+                    self.logger.info(f'Column names are {", ".join(row)}')
+                else:
+                    year: int = int(row[0])
+                    seed: str = row[1]
+                    team_id: int = int(row[2])
+                    if year not in seasons_seeds:
+                        seasons_seeds[year] = []
+                    seasons_seeds[year].append(Seed(year, seed, team_id))
+                line_count += 1
+            self.logger.info(f'Processed {line_count - 1} seeds.')
+        return seasons_seeds
 
     def parse_teams(self) -> [Team]:
         teams: [Team] = []
@@ -41,8 +64,9 @@ class Parser:
             self.logger.info(f'Processed {line_count - 1} teams.')
         return teams
 
-    def parse_seasons(self, regular_seasons_games: [Game], tournaments_games: [Game], teams: [Team]):
-        seasons: dict[int, Season] = {}
+    def parse_seasons(self, regular_seasons_games: Dict, tournaments_games: Dict, teams: [Team],
+                      seasons_seeds: Dict):
+        seasons: Dict[int, Season] = {}
         with open(self.path + 'MSeasons.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
             line_count: int = 0
@@ -58,19 +82,27 @@ class Parser:
                     region_z = row[5]
                     if year not in seasons:
                         seasons[year] = []
+
+                    # There is a regular season for every year.
                     regular_season_games = regular_seasons_games[year]
+
                     tournament_games = []
+                    seeds: [Seed] = []
+
+                    # Specific check to avoid the 2019-2020 season which didn't see the NCAA tournament take place.
                     if year in tournaments_games:
                         tournament_games = tournaments_games[year]
+                        seeds = seasons_seeds[year]
+
                     seasons[year] = Season(year, day_zero, regular_season_games,
-                                           tournament_games, region_w, region_x, region_y, region_z,
+                                           tournament_games, region_w, region_x, region_y, region_z, seeds,
                                            teams)
                 line_count += 1
             self.logger.info(f'Processed {line_count - 1} seasons.')
         return seasons
 
     def parse_regular_seasons_games(self):
-        games: dict[int, Game] = {}
+        games: Dict = {}
         with open(self.path + 'MRegularSeasonCompactResults.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
             line_count: int = 0
@@ -94,7 +126,7 @@ class Parser:
         return games
 
     def parse_tournaments_games(self):
-        games: dict[int, Game] = {}
+        games: Dict = {}
         with open(self.path + 'MNCAATourneyCompactResults.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
             line_count: int = 0
