@@ -1,6 +1,6 @@
 from typing import Dict
 
-from feature import AbsoluteFeature
+from feature import AbsoluteFeature, RelativeFeature, Feature
 from game import Game
 from classifier import Classifier, SeedsBasedClassifier
 from sample import Sample
@@ -37,32 +37,45 @@ class Season:
         self.teams: [Team] = teams
 
     """
-    Returns features for the specified match-up: the output is an array of length 2 containing the features for the
-    [[team_1_id, team_2_id], [team_2_id, team_1_id]] views of the match-up.
-     
-    The features are of two kinds:
-    - either they relate to a single team (absolute);
-    - or involve the relative performance of the two matched up teams (relative).
+    Returns float features for the specified match-up.
     
     We create two sets of features, one for each "vision" of the match-up:
     - team_1 vs. team_2;
     - team_2 vs. team_1.
     """
     def get_match_up_features(self, match_up: MatchUp):
-        absolute_features = self.get_match_up_absolute_features(match_up)
+        features: [Feature] = self.build_features(match_up)
 
-        # TODO: Zip relative features and include those for both visions.
-        team_1_vs_team_2_features = []
-        team_2_vs_team_1_features = []
-        for feature in absolute_features:
-            team_1_vs_team_2_features.extend([feature.value_1, feature.value_2])
-            team_2_vs_team_1_features.extend([feature.value_2, feature.value_1])
+        vision_1_features = []
+        vision_2_features = []
+        for feature in features:
+            vision_1_features.extend(feature.vision_1())
+            vision_2_features.extend(feature.vision_2())
 
-        match_up_features = [team_1_vs_team_2_features, team_2_vs_team_1_features]
+        return [vision_1_features, vision_2_features]
 
-        return match_up_features
+    """
+    Builds feature objects for a match-up.
+    
+    The features are of two kinds:
+    - either they relate to a single team (absolute);
+    - or involve the relative performance of the two matched up teams (relative).
+    """
+    def build_features(self, match_up: MatchUp) -> [Feature]:
+        absolute_features: [Feature] = self.build_absolute_features(match_up)
+        relative_features: [Feature] = self.build_relative_features(match_up)
+        return absolute_features + relative_features
 
-    def get_match_up_absolute_features(self, match_up: MatchUp):
+    """
+    Relative features for a potential match-up in this season's NCAA tournament. 
+    """
+    def build_relative_features(self, match_up: MatchUp) -> [RelativeFeature]:
+        return []
+
+    """
+    Absolute features for a potential match-up in this season's NCAA tournament. 
+    """
+    def build_absolute_features(self, match_up: MatchUp) -> [AbsoluteFeature]:
         team_1_id = match_up.team_1_id
         team_2_id = match_up.team_2_id
         seed_position_feature = AbsoluteFeature(self.tournament.seeds[team_1_id].position,
@@ -85,7 +98,6 @@ class Season:
     There are 60+ tournament games each season that we can learn from. We concatenate the match-up features
     and labels for each of those games (each separately).
     """
-
     def get_season_features_and_labels(self):
         season_features = []
         season_labels = []
@@ -102,7 +114,6 @@ class Season:
     two point of views always sum up to 1 (no draws), we only output predictions for "team_1 vs. team_2" views, where
     the team_1's ID is strictly smaller than team_2's ID. That rule is enforced at the Sample class level.
     """
-
     def predict(self, classifier: Classifier) -> [Sample]:
         # Sorted array (ascending) of IDs of teams which participate to this season's NCAA tournament.
         tournament_teams_ids: [int] = self.tournament.team_ids
@@ -127,7 +138,6 @@ class Season:
     """
     Get sample for team_1 vs. team_2 match-up.
     """
-
     def get_sample(self, team_1_id: int, team_2_id: int):
         expected_outcome = self.tournament.get_expected_outcome(team_1_id, team_2_id)
         match_up_features = self.get_match_up_features(MatchUp(team_1_id, team_2_id))
@@ -141,7 +151,6 @@ class Season:
     """
     Returns the classifier based on seeds heuristics.
     """
-
     def get_seeds_based_classifier(self) -> Classifier:
         return SeedsBasedClassifier(self.tournament.seeds)
 
