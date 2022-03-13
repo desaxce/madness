@@ -1,5 +1,7 @@
+from feature import AbsoluteFeature, Feature
 from game import Game
 from seed import Seed
+from teams import MatchUp
 
 
 class Tournament:
@@ -22,6 +24,10 @@ class Tournament:
         for seed in seeds:
             self.seeds[seed.team_id] = seed
 
+    def get_seeds_positions(self, match_up: MatchUp) -> Feature:
+        return AbsoluteFeature(self.seeds[match_up.team_1_id].position,
+                               self.seeds[match_up.team_2_id].position)
+
     """
     Returns the expected outcome of a potential match-up:
     - 1 if team_1 won;
@@ -34,5 +40,3 @@ class Tournament:
 
     def get_expected_outcome(self, team_1_id, team_2_id):
         return self.expected_outcomes.get(f"{team_1_id}_{team_2_id}", -1)
-
-

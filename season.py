@@ -43,6 +43,7 @@ class Season:
     - team_1 vs. team_2;
     - team_2 vs. team_1.
     """
+
     def get_match_up_features(self, match_up: MatchUp):
         features: [Feature] = self.build_features(match_up)
 
@@ -61,6 +62,7 @@ class Season:
     - either they relate to a single team (absolute);
     - or involve the relative performance of the two matched up teams (relative).
     """
+
     def build_features(self, match_up: MatchUp) -> [Feature]:
         absolute_features: [Feature] = self.build_absolute_features(match_up)
         relative_features: [Feature] = self.build_relative_features(match_up)
@@ -69,23 +71,18 @@ class Season:
     """
     Relative features for a potential match-up in this season's NCAA tournament. 
     """
+
     def build_relative_features(self, match_up: MatchUp) -> [RelativeFeature]:
         return []
 
     """
     Absolute features for a potential match-up in this season's NCAA tournament. 
     """
+
     def build_absolute_features(self, match_up: MatchUp) -> [AbsoluteFeature]:
-        team_1_id = match_up.team_1_id
-        team_2_id = match_up.team_2_id
-        seed_position_feature = AbsoluteFeature(self.tournament.seeds[team_1_id].position,
-                                                self.tournament.seeds[team_2_id].position)
-
-        average_points_allowed_feature = AbsoluteFeature(self.regular_season.get_average_points_allowed(team_1_id),
-                                                         self.regular_season.get_average_points_allowed(team_2_id))
-
-        average_points_scored_feature = AbsoluteFeature(self.regular_season.get_average_points_scored(team_1_id),
-                                                        self.regular_season.get_average_points_scored(team_2_id))
+        seed_position_feature = self.tournament.get_seeds_positions(match_up)
+        average_points_allowed_feature = self.regular_season.get_average_points_allowed(match_up)
+        average_points_scored_feature = self.regular_season.get_average_points_scored(match_up)
 
         return [seed_position_feature, average_points_allowed_feature, average_points_scored_feature]
 
@@ -98,6 +95,7 @@ class Season:
     There are 60+ tournament games each season that we can learn from. We concatenate the match-up features
     and labels for each of those games (each separately).
     """
+
     def get_season_features_and_labels(self):
         season_features = []
         season_labels = []
@@ -114,6 +112,7 @@ class Season:
     two point of views always sum up to 1 (no draws), we only output predictions for "team_1 vs. team_2" views, where
     the team_1's ID is strictly smaller than team_2's ID. That rule is enforced at the Sample class level.
     """
+
     def predict(self, classifier: Classifier) -> [Sample]:
         # Sorted array (ascending) of IDs of teams which participate to this season's NCAA tournament.
         tournament_teams_ids: [int] = self.tournament.team_ids
@@ -138,6 +137,7 @@ class Season:
     """
     Get sample for team_1 vs. team_2 match-up.
     """
+
     def get_sample(self, team_1_id: int, team_2_id: int):
         expected_outcome = self.tournament.get_expected_outcome(team_1_id, team_2_id)
         match_up_features = self.get_match_up_features(MatchUp(team_1_id, team_2_id))
@@ -151,6 +151,7 @@ class Season:
     """
     Returns the classifier based on seeds heuristics.
     """
+
     def get_seeds_based_classifier(self) -> Classifier:
         return SeedsBasedClassifier(self.tournament.seeds)
 
@@ -206,11 +207,13 @@ class RegularSeason:
         for team_id, total_points in self.total_points_scored.items():
             self.average_points_scored[team_id] = total_points / self.number_games_played[team_id]
 
-    def get_average_points_allowed(self, team_id: int) -> float:
-        return self.average_points_allowed[team_id]
+    def get_average_points_allowed(self, match_up: MatchUp) -> Feature:
+        return AbsoluteFeature(self.average_points_allowed[match_up.team_1_id],
+                               self.average_points_allowed[match_up.team_2_id])
 
-    def get_average_points_scored(self, team_id: int) -> float:
-        return self.average_points_scored[team_id]
+    def get_average_points_scored(self, match_up: MatchUp) -> Feature:
+        return AbsoluteFeature(self.average_points_scored[match_up.team_1_id],
+                               self.average_points_scored[match_up.team_2_id])
 
     def get_record(self, team_id: int) -> float:
         assert type(team_id) == int, f"Team ID {team_id} is not an integer."
