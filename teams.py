@@ -1,3 +1,6 @@
+from feature import Feature, AbsoluteFeature
+
+
 class Team:
     """
     Represents a division 1 team.
@@ -16,3 +19,6 @@ class MatchUp:
     def __init__(self, team_1_id: int, team_2_id: int):
         self.team_1_id: int = team_1_id
         self.team_2_id: int = team_2_id
+
+    def get_teams_ids_feature(self) -> Feature:
+        return AbsoluteFeature(self.team_1_id, self.team_2_id)
