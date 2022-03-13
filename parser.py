@@ -4,9 +4,6 @@ from typing import Dict
 from game import Game
 from season import Season
 from teams import Team
-
-from sklearn.neural_network import MLPClassifier
-
 from seed import Seed
 
 
@@ -24,8 +21,37 @@ class Parser:
         regular_seasons_games = self.parse_regular_seasons_games()
         tournaments_games = self.parse_tournaments_games()
         seasons_seeds = self.parse_seeds()
-        seasons = self.parse_seasons(regular_seasons_games, tournaments_games, teams, seasons_seeds)
+        seasons_rankings = self.parse_rankings()
+        seasons = self.parse_seasons(regular_seasons_games, tournaments_games, teams, seasons_seeds, seasons_rankings)
         return seasons, teams
+
+    def parse_rankings(self) -> Dict:
+        seasons_rankings: Dict = {}
+        with open(self.path + 'MMasseyOrdinals.csv') as rankings_csv:
+            csv_reader = csv.reader(rankings_csv, delimiter=',')
+            line_count: int = 0
+            for row in csv_reader:
+                if line_count == 0:
+                    self.logger.info(f'Column names are {", ".join(row)}')
+                else:
+                    year: int = int(row[0])
+                    day_num: int = int(row[1])
+                    system_name: str = row[2]
+                    team_id: int = int(row[3])
+                    rank: int = int(row[4])
+
+                    # The final pre-tournament rankings each year have a RankingDayNum of 133
+                    if day_num == 133:
+                        if year not in seasons_rankings:
+                            seasons_rankings[year] = {}
+
+                        if system_name not in seasons_rankings[year]:
+                            seasons_rankings[year][system_name] = {}
+
+                        seasons_rankings[year][system_name][team_id] = rank
+                line_count += 1
+            self.logger.info(f'Processed {line_count - 1} ranking rows.')
+        return seasons_rankings
 
     def parse_seeds(self) -> Dict:
         seasons_seeds: Dict = {}
@@ -65,7 +91,7 @@ class Parser:
         return teams
 
     def parse_seasons(self, regular_seasons_games: Dict, tournaments_games: Dict, teams: [Team],
-                      seasons_seeds: Dict):
+                      seasons_seeds: Dict, seasons_rankings: Dict):
         seasons: Dict[int, Season] = {}
         with open(self.path + 'MSeasons.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
@@ -88,13 +114,18 @@ class Parser:
 
                     tournament_games = []
                     seeds: [Seed] = []
+                    rankings: Dict = {}
 
                     # Specific check to avoid the 2019-2020 season which didn't see the NCAA tournament take place.
                     if year in tournaments_games:
                         tournament_games = tournaments_games[year]
                         seeds = seasons_seeds[year]
 
-                    seasons[year] = Season(year, day_zero, regular_season_games,
+                    # Ranks only available starting with the 2002-03 season.
+                    if year in tournaments_games and year >= 2003:
+                        rankings = seasons_rankings[year]
+
+                    seasons[year] = Season(year, day_zero, regular_season_games, rankings,
                                            tournament_games, region_w, region_x, region_y, region_z, seeds,
                                            teams)
                 line_count += 1
