@@ -4,7 +4,7 @@ from feature import AbsoluteFeature
 from game import Game
 from classifier import Classifier, SeedsBasedClassifier
 from sample import Sample
-from teams import Team
+from teams import Team, MatchUp
 from tournament import Tournament
 from seed import Seed
 
@@ -37,40 +37,21 @@ class Season:
         self.teams: [Team] = teams
 
     """
-    Returns features and labels for the specified match-up: the return type is a tuple of two arrays, each
-    of length 2:
-    - features first: [[w_team_id vs. l_team_id], [l_team_id vs. w_team_id]];
-    - labels second: [1, 0].
-    
+    Returns features for the specified match-up: the output is an array of length 2 containing the features for the
+    [[team_1_id, team_2_id], [team_2_id, team_1_id]] views of the match-up.
+     
     The features are of two kinds:
-    - either relate to a single team and its overall situation relative to all other teams;
-    - or involve the relative performance of the two matched up teams.
+    - either they relate to a single team (absolute);
+    - or involve the relative performance of the two matched up teams (relative).
     
-    Because of the asymmetry of this method's arguments (winning team first), we will want to create two
-    sets of features for each match-up,
-    - one where we list the winning team's features first, followed by the relative performance of the winning team
-      vs. the losing team, followed by the losing team's features;
-    - a second where we list the losing team's features first, followed by the relative performance of the losing
-      team vs. the winning team, followed by the winning team's features. 
-    
-    We label the first set of feature with a 1 (first team won) and the second with a 0 (first team lost).
+    We create two sets of features, one for each "vision" of the match-up:
+    - team_1 vs. team_2;
+    - team_2 vs. team_1.
     """
+    def get_match_up_features(self, match_up: MatchUp):
+        absolute_features = self.get_match_up_absolute_features(match_up)
 
-    def get_match_up_features_and_labels(self, w_team_id: int, l_team_id: int):
-        # Absolute features
-        seed_position_feature = AbsoluteFeature(self.tournament.seeds[w_team_id].position,
-                                                self.tournament.seeds[l_team_id].position)
-
-        average_points_allowed_feature = AbsoluteFeature(self.regular_season.get_average_points_allowed(w_team_id),
-                                                         self.regular_season.get_average_points_allowed(l_team_id))
-
-        average_points_scored_feature = AbsoluteFeature(self.regular_season.get_average_points_scored(w_team_id),
-                                                        self.regular_season.get_average_points_scored(l_team_id))
-
-        absolute_features = [seed_position_feature, average_points_allowed_feature, average_points_scored_feature]
-        # Loop on absolute features
-        # TODO: Zip relative features and include those for both visions
-
+        # TODO: Zip relative features and include those for both visions.
         team_1_vs_team_2_features = []
         team_2_vs_team_1_features = []
         for feature in absolute_features:
@@ -78,22 +59,22 @@ class Season:
             team_2_vs_team_1_features.extend([feature.value_2, feature.value_1])
 
         match_up_features = [team_1_vs_team_2_features, team_2_vs_team_1_features]
-        match_up_labels = [1, 0]
 
-        return match_up_features, match_up_labels
+        return match_up_features
 
-    """
-    Returns features for the specified match-up: the output is an array of length 2 containing the features for the
-    [[team_1_id, team_2_id], [team_2_id, team_1_id]] views of the match-up. 
-    
-    Although we call get_match_up_features_and_labels which relies on having the winning team's ID specified as its
-    first argument, it does not matter in this case where we ignore the labels (who actually won). We're solely
-    interested in the match-up features, and we return the two visions of the match-up: team_1 vs. team_2 and
-    team_2 vs. team_1.
-    """
+    def get_match_up_absolute_features(self, match_up: MatchUp):
+        team_1_id = match_up.team_1_id
+        team_2_id = match_up.team_2_id
+        seed_position_feature = AbsoluteFeature(self.tournament.seeds[team_1_id].position,
+                                                self.tournament.seeds[team_2_id].position)
 
-    def get_match_up_features(self, team_1_id: int, team_2_id: int):
-        return self.get_match_up_features_and_labels(team_1_id, team_2_id)[0]
+        average_points_allowed_feature = AbsoluteFeature(self.regular_season.get_average_points_allowed(team_1_id),
+                                                         self.regular_season.get_average_points_allowed(team_2_id))
+
+        average_points_scored_feature = AbsoluteFeature(self.regular_season.get_average_points_scored(team_1_id),
+                                                        self.regular_season.get_average_points_scored(team_2_id))
+
+        return [seed_position_feature, average_points_allowed_feature, average_points_scored_feature]
 
     """
     Returns a labelled data set using the actual tournament games that occurred that season. The output is a tuple
@@ -109,10 +90,9 @@ class Season:
         season_features = []
         season_labels = []
         for game in self.tournament.tournament_games:
-            # Order of arguments matter: winning team first, then losing team.
-            match_up_features, match_up_labels = self.get_match_up_features_and_labels(game.w_team_id, game.l_team_id)
+            match_up_features = self.get_match_up_features(MatchUp(game.w_team_id, game.l_team_id))
             season_features.extend(match_up_features)
-            season_labels.extend(match_up_labels)
+            season_labels.extend([1, 0])
         return season_features, season_labels
 
     """
@@ -150,7 +130,7 @@ class Season:
 
     def get_sample(self, team_1_id: int, team_2_id: int):
         expected_outcome = self.tournament.get_expected_outcome(team_1_id, team_2_id)
-        match_up_features = self.get_match_up_features(team_1_id, team_2_id)
+        match_up_features = self.get_match_up_features(MatchUp(team_1_id, team_2_id))
 
         return Sample(team_1_id, team_2_id, match_up_features[0], expected_outcome)
 
