@@ -1,7 +1,18 @@
 class Team:
+    """
+    Represents a division 1 team.
+    """
     def __init__(self, team_id: int, team_name: str, first_d1_season: int, last_d1_season: int):
-        # TODO: Change the team_id to an integer to allow for comparisons.
         self.id: int = team_id
-        self.name = team_name
-        self.first_d1_season = first_d1_season
-        self.last_d1_season = last_d1_season
+        self.name: str = team_name
+        self.first_d1_season: int = first_d1_season
+        self.last_d1_season: int = last_d1_season
+
+
+class MatchUp:
+    """
+    Represents a potential match-up of team_1 vs. team_2. No enforced rule on the teams IDs..
+    """
+    def __init__(self, team_1_id: int, team_2_id: int):
+        self.team_1_id: int = team_1_id
+        self.team_2_id: int = team_2_id
