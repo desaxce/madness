@@ -50,7 +50,7 @@ class Span:
         layer_size = len(span_features[0])
 
         # Two layers for now.
-        hidden_layer_sizes = (layer_size, layer_size * 2, layer_size * 3, layer_size * 2, layer_size)
+        hidden_layer_sizes = (layer_size, layer_size)
 
         mlp_classifier = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=max_iter)
 
