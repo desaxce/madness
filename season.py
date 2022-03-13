@@ -1,9 +1,10 @@
 from typing import Dict
 
+from feature import AbsoluteFeature, RelativeFeature, Feature
 from game import Game
 from classifier import Classifier, SeedsBasedClassifier
 from sample import Sample
-from teams import Team
+from teams import Team, MatchUp
 from tournament import Tournament
 from seed import Seed
 
@@ -27,6 +28,7 @@ class Season:
     championship played in early spring of year n+1.
     We refer to a season's year by using the year the NCAA tournament for that season was played (n+1 above).
     """
+
     def __init__(self, year: int, day_zero: str, regular_season_games: [Game],
                  tournament_games: [Game], region_w: str, region_x: str, region_y: str, region_z: str, seeds: [Seed],
                  teams: [Team]):
@@ -35,53 +37,54 @@ class Season:
         self.teams: [Team] = teams
 
     """
-    Returns features and labels for the specified match-up: the return type is a tuple of two arrays, each
-    of length 2:
-    - features first: [[w_team_id vs. l_team_id], [l_team_id vs. w_team_id]];
-    - labels second: [1, 0].
+    Returns float features for the specified match-up.
+    
+    We create two sets of features, one for each "vision" of the match-up:
+    - team_1 vs. team_2;
+    - team_2 vs. team_1.
+    """
+
+    def get_match_up_features(self, match_up: MatchUp):
+        features: [Feature] = self.build_features(match_up)
+
+        vision_1_features = []
+        vision_2_features = []
+        for feature in features:
+            vision_1_features.extend(feature.vision_1())
+            vision_2_features.extend(feature.vision_2())
+
+        return [vision_1_features, vision_2_features]
+
+    """
+    Builds feature objects for a match-up.
     
     The features are of two kinds:
-    - either relate to a single team and its overall situation relative to all other teams;
-    - or involve the relative performance of the two matched up teams.
-    
-    Because of the asymmetry of this method's arguments (winning team first), we will want to create two
-    sets of features for each match-up,
-    - one where we list the winning team's features first, followed by the relative performance of the winning team
-      vs. the losing team, followed by the losing team's features;
-    - a second where we list the losing team's features first, followed by the relative performance of the losing
-      team vs. the winning team, followed by the winning team's features. 
-    
-    We label the first set of feature with a 1 (first team won) and the second with a 0 (first team lost).
+    - either they relate to a single team (absolute);
+    - or involve the relative performance of the two matched up teams (relative).
     """
-    def get_match_up_features_and_labels(self, w_team_id: int, l_team_id: int):
-        w_team_seed_position = self.tournament.seeds[w_team_id].position
-        l_team_seed_position = self.tournament.seeds[l_team_id].position
 
-        w_team_average_points_allowed = self.regular_season.get_average_points_allowed(w_team_id)
-        l_team_average_points_allowed = self.regular_season.get_average_points_allowed(l_team_id)
-
-        w_team_average_points_scored = self.regular_season.get_average_points_scored(w_team_id)
-        l_team_average_points_scored = self.regular_season.get_average_points_scored(l_team_id)
-
-        match_up_features = [[w_team_seed_position, w_team_average_points_allowed, w_team_average_points_scored,
-                              l_team_seed_position, l_team_average_points_allowed, l_team_average_points_scored],
-                             [l_team_seed_position, l_team_average_points_allowed, l_team_average_points_scored,
-                              w_team_seed_position, w_team_average_points_allowed, w_team_average_points_scored]]
-        match_up_labels = [1, 0]
-
-        return match_up_features, match_up_labels
+    def build_features(self, match_up: MatchUp) -> [Feature]:
+        absolute_features: [Feature] = self.build_absolute_features(match_up)
+        relative_features: [Feature] = self.build_relative_features(match_up)
+        return absolute_features + relative_features
 
     """
-    Returns features for the specified match-up: the output is an array of length 2 containing the features for the
-    [[team_1_id, team_2_id], [team_2_id, team_1_id]] views of the match-up. 
-    
-    Although we call get_match_up_features_and_labels which relies on having the winning team's ID specified as its
-    first argument, it does not matter in this case where we ignore the labels (who actually won). We're solely
-    interested in the match-up features, and we return the two visions of the match-up: team_1 vs. team_2 and
-    team_2 vs. team_1.
+    Relative features for a potential match-up in this season's NCAA tournament. 
     """
-    def get_match_up_features(self, team_1_id: int, team_2_id: int):
-        return self.get_match_up_features_and_labels(team_1_id, team_2_id)[0]
+
+    def build_relative_features(self, match_up: MatchUp) -> [RelativeFeature]:
+        return []
+
+    """
+    Absolute features for a potential match-up in this season's NCAA tournament. 
+    """
+
+    def build_absolute_features(self, match_up: MatchUp) -> [AbsoluteFeature]:
+        seed_position_feature = self.tournament.get_seeds_positions(match_up)
+        average_points_allowed_feature = self.regular_season.get_average_points_allowed(match_up)
+        average_points_scored_feature = self.regular_season.get_average_points_scored(match_up)
+
+        return [seed_position_feature, average_points_allowed_feature, average_points_scored_feature]
 
     """
     Returns a labelled data set using the actual tournament games that occurred that season. The output is a tuple
@@ -92,14 +95,14 @@ class Season:
     There are 60+ tournament games each season that we can learn from. We concatenate the match-up features
     and labels for each of those games (each separately).
     """
+
     def get_season_features_and_labels(self):
         season_features = []
         season_labels = []
         for game in self.tournament.tournament_games:
-            # Order of arguments matter: winning team first, then losing team.
-            match_up_features, match_up_labels = self.get_match_up_features_and_labels(game.w_team_id, game.l_team_id)
+            match_up_features = self.get_match_up_features(MatchUp(game.w_team_id, game.l_team_id))
             season_features.extend(match_up_features)
-            season_labels.extend(match_up_labels)
+            season_labels.extend([1, 0])
         return season_features, season_labels
 
     """
@@ -109,6 +112,7 @@ class Season:
     two point of views always sum up to 1 (no draws), we only output predictions for "team_1 vs. team_2" views, where
     the team_1's ID is strictly smaller than team_2's ID. That rule is enforced at the Sample class level.
     """
+
     def predict(self, classifier: Classifier) -> [Sample]:
         # Sorted array (ascending) of IDs of teams which participate to this season's NCAA tournament.
         tournament_teams_ids: [int] = self.tournament.team_ids
@@ -121,7 +125,7 @@ class Season:
         samples: [Sample] = []
         for idx_1, team_1_id in enumerate(tournament_teams_ids):
             # No need to enumerate for second team, we only use that team's ID.
-            for team_2_id in tournament_teams_ids[idx_1+1:]:
+            for team_2_id in tournament_teams_ids[idx_1 + 1:]:
                 samples.append(self.get_sample(team_1_id, team_2_id))
 
         classes_probabilities = classifier.predict_proba(samples)
@@ -133,9 +137,10 @@ class Season:
     """
     Get sample for team_1 vs. team_2 match-up.
     """
+
     def get_sample(self, team_1_id: int, team_2_id: int):
         expected_outcome = self.tournament.get_expected_outcome(team_1_id, team_2_id)
-        match_up_features = self.get_match_up_features(team_1_id, team_2_id)
+        match_up_features = self.get_match_up_features(MatchUp(team_1_id, team_2_id))
 
         return Sample(team_1_id, team_2_id, match_up_features[0], expected_outcome)
 
@@ -146,6 +151,7 @@ class Season:
     """
     Returns the classifier based on seeds heuristics.
     """
+
     def get_seeds_based_classifier(self) -> Classifier:
         return SeedsBasedClassifier(self.tournament.seeds)
 
@@ -158,6 +164,7 @@ class RegularSeason:
     The day zero serves as an origin date specific to that season and allows us to refer to commonly refer to day
     numbers for all seasons.
     """
+
     def __init__(self, year: int, day_zero: str, regular_season_games: [Game]):
         self.year: int = year
         self.day_zero: str = day_zero
@@ -200,11 +207,13 @@ class RegularSeason:
         for team_id, total_points in self.total_points_scored.items():
             self.average_points_scored[team_id] = total_points / self.number_games_played[team_id]
 
-    def get_average_points_allowed(self, team_id: int) -> float:
-        return self.average_points_allowed[team_id]
+    def get_average_points_allowed(self, match_up: MatchUp) -> Feature:
+        return AbsoluteFeature(self.average_points_allowed[match_up.team_1_id],
+                               self.average_points_allowed[match_up.team_2_id])
 
-    def get_average_points_scored(self, team_id: int) -> float:
-        return self.average_points_scored[team_id]
+    def get_average_points_scored(self, match_up: MatchUp) -> Feature:
+        return AbsoluteFeature(self.average_points_scored[match_up.team_1_id],
+                               self.average_points_scored[match_up.team_2_id])
 
     def get_record(self, team_id: int) -> float:
         assert type(team_id) == int, f"Team ID {team_id} is not an integer."
@@ -216,6 +225,6 @@ class RegularSeason:
                 won_games += 1
             elif game.l_team_id == team_id:
                 lost_games += 1
-        assert won_games + lost_games != 0, f"No game records for team {team_id} during the {self.year-1}-{self.year}" \
+        assert won_games + lost_games != 0, f"No game records for team {team_id} during the {self.year - 1}-{self.year}" \
                                             f" regular season."
         return won_games / (won_games + lost_games)
