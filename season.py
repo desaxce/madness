@@ -2,6 +2,7 @@ from typing import Dict
 
 from game import Game
 from prediction import Prediction, Classifier, NeuralNetworkClassifier, FiftyFiftyClassifier, SeedsBasedClassifier
+from sample import Sample
 from teams import Team
 from tournament import Tournament
 from seed import Seed
@@ -152,7 +153,8 @@ class Season:
         assert team_1_id != team_2_id, f"Cannot predict outcome of {team_1_id} vs. {team_2_id}, they're the " \
                                        f"same team"
         match_up_features = self.get_match_up_features(team_1_id, team_2_id)
-        predictions = classifier.predict_proba(team_1_id, team_2_id, match_up_features)
+        match_up_samples = [Sample(team_1_id, team_2_id, match_up_features[0])]
+        predictions = classifier.predict_proba(match_up_samples)
 
         # First view is when we consider the team_1 vs. team_2 features: we retrieve the winning probability of team_1.
         first_view_win_prediction = predictions[0][1]
@@ -286,6 +288,8 @@ class Span:
 
         # All layers with the same size
         layer_size = len(span_features[0])
+        print(len(span_features))
+        print(len(span_features[0]))
 
         # Two layers for now.
         hidden_layer_sizes = (layer_size, layer_size * 2, layer_size * 3, layer_size * 2, layer_size)
