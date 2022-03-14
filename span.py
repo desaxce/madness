@@ -1,9 +1,11 @@
 from statistics import mean
 from typing import Dict
 
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import MinMaxScaler
 
-from classifier import Classifier, FiftyFiftyClassifier, NeuralNetworkClassifier, SeedsBasedClassifier
+from classifier import Classifier, FiftyFiftyClassifier, NeuralNetworkClassifier, SeedsBasedClassifier, TreeClassifier
 from season import Season
 
 
@@ -21,8 +23,9 @@ class Span:
          validation data set.
     """
 
-    def __init__(self, seasons: [Season]):
+    def __init__(self, seasons: [Season], classifier_type: str = "MLP"):
         self.seasons: [Season] = seasons
+        self.classifier_type: str = classifier_type
 
     """
     The train API lets users fit a Multi-Layer Perceptron classifier (using a logarithmic
@@ -37,6 +40,7 @@ class Span:
     By concatenating all the seasons' features together (and similarly for all the labels), we
     can fit a classifier and return it for prediction purposes.
     """
+
     def train(self, max_iter: int = 1000) -> Classifier:
         span_features, span_labels = [], []
 
@@ -46,20 +50,33 @@ class Span:
             span_features.extend(season_features)
             span_labels.extend(season_labels)
 
+        scaler = MinMaxScaler()
+
+        # transform data
+        scaled = scaler.fit_transform(span_features)
+
         # All layers with the same size
         layer_size = len(span_features[0])
 
         # Two layers for now.
-        hidden_layer_sizes = (layer_size, layer_size * 2, layer_size * 3, layer_size * 2, layer_size)
-
-        mlp_classifier = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=max_iter)
+        hidden_layer_sizes = (layer_size, 2*layer_size, layer_size)
 
         # TODO: Scale features for faster convergence.
         # TODO: Monitor the learning part with loading bar for Jupyter notebook.
-        mlp_classifier.fit(span_features, span_labels)
+        if self.classifier_type == "MLP":
+            mlp_classifier = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=max_iter)
+            mlp_classifier.fit(scaled, span_labels)
 
-        return NeuralNetworkClassifier(mlp_classifier)
-
+            return NeuralNetworkClassifier(mlp_classifier, scaler)
+        elif self.classifier_type == "GB":
+            gb_classifier = GradientBoostingClassifier(n_estimators=500, learning_rate=0.0001, max_depth=10)
+            gb_classifier.fit(scaled, span_labels)
+            return TreeClassifier(gb_classifier, scaler)
+        # elif self.classifier_type == "LGBM":
+        #     lgbm_classifier = LGBMClassifier(n_estimators=1000, learning_rate=0.01, max_depth=10,
+        #                                                random_state=0)
+        #     lgbm_classifier.fit(span_features, span_labels)
+        #     return TreeClassifier(gb_classifier)
     """
     The predict API relies on a dictionary of classifiers indexed by the season's year (a classifier per season)
     to give predictions. If a specific season doesn't have an entry in that dictionary, we use the 50/50 classifier. 
@@ -68,6 +85,7 @@ class Span:
     not overlap with the span you predict on. Otherwise, your results may be biased towards
     your training seasons.
     """
+
     def predict(self, classifiers: Dict = {}) -> Dict:
         # Map of season's year to predictions.
         span_predictions: Dict = {}
@@ -82,6 +100,7 @@ class Span:
     """
     Returns exactly each season's seeds based classifier.
     """
+
     def get_seasons_seeds_based_classifiers(self) -> Dict[int, SeedsBasedClassifier]:
         seasons_seeds_based_classifiers: Dict[int, SeedsBasedClassifier] = {}
 
@@ -93,6 +112,7 @@ class Span:
     """
     Returns a dictionary mapping each season to the same classifier, the one provided as input.
     """
+
     def build_seasons_classifiers_map(self, classifier: Classifier) -> Dict[int, Classifier]:
         seasons_classifiers: Dict[int, Classifier] = {}
 
@@ -107,6 +127,7 @@ class Span:
     It logs and returns each season's score and an average score for the span. 
     The output is a dictionary with the season's years as keys (-1 for the special case of the span score).
     """
+
     @staticmethod
     def score(span_predictions: Dict) -> Dict[int, float]:
         scores: Dict[int, float] = {}

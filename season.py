@@ -1,5 +1,7 @@
 from typing import Dict
 
+from sklearn.preprocessing import MinMaxScaler
+
 from feature import AbsoluteFeature, RelativeFeature, Feature
 from game import Game
 from classifier import Classifier, SeedsBasedClassifier
@@ -29,11 +31,11 @@ class Season:
     We refer to a season's year by using the year the NCAA tournament for that season was played (n+1 above).
     """
 
-    def __init__(self, year: int, day_zero: str, regular_season_games: [Game],
+    def __init__(self, year: int, day_zero: str, regular_season_games: [Game], rankings: Dict,
                  tournament_games: [Game], region_w: str, region_x: str, region_y: str, region_z: str, seeds: [Seed],
                  teams: [Team]):
         self.regular_season: RegularSeason = RegularSeason(year, day_zero, regular_season_games)
-        self.tournament: Tournament = Tournament(tournament_games, region_w, region_x, region_y, region_z, seeds)
+        self.tournament: Tournament = Tournament(year, tournament_games, region_w, region_x, region_y, region_z, seeds, rankings)
         self.teams: [Team] = teams
 
     """
@@ -61,6 +63,7 @@ class Season:
     The features are of two kinds:
     - either they relate to a single team (absolute);
     - or involve the relative performance of the two matched up teams (relative).
+<<<<<<< HEAD
     """
 
     def build_features(self, match_up: MatchUp) -> [Feature]:
@@ -73,7 +76,9 @@ class Season:
     """
 
     def build_relative_features(self, match_up: MatchUp) -> [RelativeFeature]:
-        return []
+        ranking_diff_feature = self.tournament.get_ranking_diff(match_up)
+        bracket_position_feature = self.tournament.get_bracket_positions(match_up)
+        return [ranking_diff_feature]
 
     """
     Absolute features for a potential match-up in this season's NCAA tournament. 
