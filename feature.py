@@ -36,8 +36,8 @@ class RelativeFeature(Feature):
     """
 
     def __init__(self, team_1_vs_team_2_value: float, team_2_vs_team_1_value: float):
-        self.value_1 = team_1_vs_team_2_value
-        self.value_2 = team_2_vs_team_1_value
+        self.value_1: float = team_1_vs_team_2_value
+        self.value_2: float = team_2_vs_team_1_value
 
     def vision_1(self) -> [float]:
         return [self.value_1]

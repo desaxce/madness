@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Dict
 
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import MinMaxScaler
 
 from sample import Sample
 from seed import Seed
@@ -31,12 +33,28 @@ class NeuralNetworkClassifier(Classifier):
     """
     Wrapper classifier around an MLPClassifier.
     """
-    def __init__(self, mlp_classifier: MLPClassifier):
+    def __init__(self, mlp_classifier: MLPClassifier, scaler: MinMaxScaler):
         self.mlp_classifier: MLPClassifier = mlp_classifier
+        self.scaler: MinMaxScaler = scaler
 
     def predict_proba(self, samples: [Sample]):
         features = [sample.features for sample in samples]
-        return self.mlp_classifier.predict_proba(features)
+        scaled = self.scaler.transform(features)
+        return self.mlp_classifier.predict_proba(scaled)
+
+
+class TreeClassifier(Classifier):
+    """
+    Wrapper classifier around an GradientBoostingClassifier.
+    """
+    def __init__(self, gb_classifier: GradientBoostingClassifier, scaler: MinMaxScaler):
+        self.gb_classifier: GradientBoostingClassifier = gb_classifier
+        self.scaler: MinMaxScaler = scaler
+
+    def predict_proba(self, samples: [Sample]):
+        features = [sample.features for sample in samples]
+        scaled = self.scaler.transform(features)
+        return self.gb_classifier.predict_proba(scaled)
 
 
 class SeedsBasedClassifier(Classifier):

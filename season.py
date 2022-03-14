@@ -1,5 +1,7 @@
 from typing import Dict
 
+from sklearn.preprocessing import MinMaxScaler
+
 from feature import AbsoluteFeature, RelativeFeature, Feature
 from game import Game
 from classifier import Classifier, SeedsBasedClassifier
@@ -74,6 +76,7 @@ class Season:
 
     def build_relative_features(self, match_up: MatchUp) -> [RelativeFeature]:
         ranking_diff_feature = self.tournament.get_ranking_diff(match_up)
+        bracket_position_feature = self.tournament.get_bracket_positions(match_up)
         return [ranking_diff_feature]
 
     """

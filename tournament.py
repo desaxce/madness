@@ -13,22 +13,47 @@ class Tournament:
     - the games played.
     """
 
-    def __init__(self, year: int, tournament_games: [Game], region_w, region_x, region_y, region_z, seeds: [Seed], rankings: Dict):
+    def __init__(self, year: int, tournament_games: [Game], region_w: str, region_x: str, region_y: str, region_z: str,
+                 seeds: [Seed], rankings: Dict):
         self.year: int = year
         self.tournament_games = tournament_games
-        self.team_ids = sorted(list(set([game.l_team_id for game in self.tournament_games]) \
-                                    | set([game.w_team_id for game in self.tournament_games])))
+
+        self.region_w: str = region_w
+        self.region_x: str = region_x
+        self.region_y: str = region_y
+        self.region_z: str = region_z
 
         self.expected_outcomes: dict[str, int] = {}
         for game in tournament_games:
             self.expected_outcomes[str(game)] = game.outcome()
 
-        self.seeds = {}
+        self.team_ids = sorted([seed.team_id for seed in seeds])
+
+        self.seeds: Dict[int, Seed] = {}
         for seed in seeds:
             self.seeds[seed.team_id] = seed
 
         # Key is system name, value is a Dict[team_id, rank].
         self.rankings = rankings
+
+    def get_bracket_positions(self, match_up: MatchUp) -> Feature:
+        team_1_region = self.seeds[match_up.team_1_id].region
+        team_2_region = self.seeds[match_up.team_2_id].region
+
+        team_1_left_bracket = team_1_region in ["W", "X"]
+        team_2_left_bracket = team_2_region in ["W", "X"]
+
+        # Default value if opposite bracket (only meet in finals).
+        bracket_position_feature = 0
+
+        if team_1_left_bracket == team_2_left_bracket:
+            # Meet in final four stage.
+            if team_1_region != team_2_region:
+                bracket_position_feature = 1
+            else:
+                bracket_position_feature = 2
+
+        return RelativeFeature(bracket_position_feature, bracket_position_feature)
 
     def get_seeds_positions(self, match_up: MatchUp) -> Feature:
         return AbsoluteFeature(self.seeds[match_up.team_1_id].position,
