@@ -89,8 +89,9 @@ class Season:
         seed_position_feature = self.tournament.get_seeds_positions(match_up)
         average_points_allowed_feature = self.regular_season.get_average_points_allowed(match_up)
         average_points_scored_feature = self.regular_season.get_average_points_scored(match_up)
+        adjusted_win_pct_feature = self.regular_season.get_adjusted_win_pct(match_up)
 
-        return [seed_position_feature, average_points_allowed_feature, average_points_scored_feature]
+        return [seed_position_feature, adjusted_win_pct_feature]
 
     """
     Returns a labelled data set using the actual tournament games that occurred that season. The output is a tuple
@@ -180,10 +181,12 @@ class RegularSeason:
         self.total_points_allowed: Dict[int, int] = defaultdict(lambda: 0)
         self.total_points_scored: Dict[int, int] = defaultdict(lambda: 0)
         self.number_games_played: Dict[int, int] = defaultdict(lambda: 0)
+        self.adjusted_nb_wins: Dict[int, float] = defaultdict(lambda: 0)
 
         for game in self.regular_season_games:
             w_team_id = game.w_team_id
             l_team_id = game.l_team_id
+            location = game.w_loc
 
             # Only consider regular season games involving tournament teams.
             if w_team_id in self.qualified_teams_ids and l_team_id in self.qualified_teams_ids:
@@ -193,6 +196,13 @@ class RegularSeason:
                 self.total_points_scored[l_team_id] += game.l_score
                 self.number_games_played[w_team_id] += 1
                 self.number_games_played[l_team_id] += 1
+
+                if location == "H":
+                    self.adjusted_nb_wins[w_team_id] += 0.6
+                elif location == "A":
+                    self.adjusted_nb_wins[w_team_id] += 1.4
+                elif location == "N":
+                    self.adjusted_nb_wins[w_team_id] += 1
 
         self.average_points_allowed: Dict[int, float] = {}
         for team_id, total_points in self.total_points_allowed.items():
@@ -212,6 +222,14 @@ class RegularSeason:
         teams_average_points_scored = sum(self.average_points_scored.values()) / len(self.average_points_scored)
         self.average_points_scored = defaultdict(lambda: teams_average_points_scored, self.average_points_scored)
 
+        self.adjusted_win_pct = {}
+        for team_id, number_games_played in self.number_games_played.items():
+            self.adjusted_win_pct[team_id] = self.adjusted_nb_wins[team_id] / number_games_played
+
+        # Same for adjusted win percentage.
+        teams_avg_adjusted_win_pct = sum(self.adjusted_win_pct.values()) / len(self.adjusted_win_pct)
+        self.adjusted_win_pct = defaultdict(lambda: teams_avg_adjusted_win_pct, self.adjusted_win_pct)
+
     def get_average_points_allowed(self, match_up: MatchUp) -> Feature:
         return AbsoluteFeature(self.average_points_allowed[match_up.team_1_id],
                                self.average_points_allowed[match_up.team_2_id])
@@ -219,6 +237,10 @@ class RegularSeason:
     def get_average_points_scored(self, match_up: MatchUp) -> Feature:
         return AbsoluteFeature(self.average_points_scored[match_up.team_1_id],
                                self.average_points_scored[match_up.team_2_id])
+
+    def get_adjusted_win_pct(self, match_up: MatchUp) -> Feature:
+        return AbsoluteFeature(self.adjusted_win_pct[match_up.team_1_id],
+                               self.adjusted_win_pct[match_up.team_2_id])
 
     def get_record(self, team_id: int) -> float:
         assert type(team_id) == int, f"Team ID {team_id} is not an integer."
