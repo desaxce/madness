@@ -106,6 +106,10 @@ class Parser:
                     region_x = row[3]
                     region_y = row[4]
                     region_z = row[5]
+
+                    if year <= 2002:
+                        continue
+
                     if year not in seasons:
                         seasons[year] = []
 
@@ -135,7 +139,7 @@ class Parser:
 
     def parse_regular_seasons_games(self):
         games: Dict = {}
-        with open(self.path + 'MRegularSeasonCompactResults.csv') as seasons_csv:
+        with open(self.path + 'MRegularSeasonDetailedResults.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:
@@ -150,16 +154,48 @@ class Parser:
                     l_score: int = int(row[5])
                     w_loc: str = row[6]
                     num_ot: int = int(row[7])
+
+                    w_fgm: int = int(row[8])
+                    w_fga: int = int(row[9])
+                    w_fgm3: int = int(row[10])
+                    w_fga3: int = int(row[11])
+                    w_ftm: int = int(row[12])
+                    w_fta: int = int(row[13])
+                    w_or: int = int(row[14])
+                    w_dr: int = int(row[15])
+                    w_ast: int = int(row[16])
+                    w_to: int = int(row[17])
+                    w_stl: int = int(row[18])
+                    w_blk: int = int(row[19])
+                    w_pf: int = int(row[20])
+
+                    l_fgm: int = int(row[21])
+                    l_fga: int = int(row[22])
+                    l_fgm3: int = int(row[23])
+                    l_fga3: int = int(row[24])
+                    l_ftm: int = int(row[25])
+                    l_fta: int = int(row[26])
+                    l_or: int = int(row[27])
+                    l_dr: int = int(row[28])
+                    l_ast: int = int(row[29])
+                    l_to: int = int(row[30])
+                    l_stl: int = int(row[31])
+                    l_blk: int = int(row[32])
+                    l_pf: int = int(row[33])
                     if year not in games:
                         games[year] = []
-                    games[year].append(Game(year, day_num, w_team_id, w_score, l_team_id, l_score, w_loc, num_ot))
+                    games[year].append(
+                        Game(year, day_num, w_team_id, w_score, l_team_id, l_score, w_loc, num_ot, w_fgm, w_fga, w_fgm3,
+                             w_fga3,
+                             w_ftm, w_fta, w_or, w_dr, w_ast, w_to, w_stl, w_blk, w_pf, l_fgm, l_fga, l_fgm3, l_fga3,
+                             l_ftm, l_fta, l_or, l_dr, l_ast, l_to, l_stl, l_blk, l_pf))
                 line_count += 1
             self.logger.info(f'Processed {line_count - 1} games.')
         return games
 
     def parse_tournaments_games(self):
         games: Dict = {}
-        with open(self.path + 'MNCAATourneyCompactResults.csv') as seasons_csv:
+        with open(self.path + 'MNCAATourneyDetailedResults.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:
@@ -174,9 +210,41 @@ class Parser:
                     l_score: int = int(row[5])
                     w_loc: str = row[6]
                     num_ot: int = int(row[7])
+
+                    w_fgm: int = int(row[8])
+                    w_fga: int = int(row[9])
+                    w_fgm3: int = int(row[10])
+                    w_fga3: int = int(row[11])
+                    w_ftm: int = int(row[12])
+                    w_fta: int = int(row[13])
+                    w_or: int = int(row[14])
+                    w_dr: int = int(row[15])
+                    w_ast: int = int(row[16])
+                    w_to: int = int(row[17])
+                    w_stl: int = int(row[18])
+                    w_blk: int = int(row[19])
+                    w_pf: int = int(row[20])
+
+                    l_fgm: int = int(row[21])
+                    l_fga: int = int(row[22])
+                    l_fgm3: int = int(row[23])
+                    l_fga3: int = int(row[24])
+                    l_ftm: int = int(row[25])
+                    l_fta: int = int(row[26])
+                    l_or: int = int(row[27])
+                    l_dr: int = int(row[28])
+                    l_ast: int = int(row[29])
+                    l_to: int = int(row[30])
+                    l_stl: int = int(row[31])
+                    l_blk: int = int(row[32])
+                    l_pf: int = int(row[33])
                     if year not in games:
                         games[year] = []
-                    games[year].append(Game(year, day_num, w_team_id, w_score, l_team_id, l_score, w_loc, num_ot))
+                    games[year].append(
+                        Game(year, day_num, w_team_id, w_score, l_team_id, l_score, w_loc, num_ot, w_fgm, w_fga, w_fgm3,
+                             w_fga3,
+                             w_ftm, w_fta, w_or, w_dr, w_ast, w_to, w_stl, w_blk, w_pf, l_fgm, l_fga, l_fgm3, l_fga3,
+                             l_ftm, l_fta, l_or, l_dr, l_ast, l_to, l_stl, l_blk, l_pf))
                 line_count += 1
             self.logger.info(f'Processed {line_count - 1} games.')
         return games
