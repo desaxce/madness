@@ -63,6 +63,7 @@ class Season:
     The features are of two kinds:
     - either they relate to a single team (absolute);
     - or involve the relative performance of the two matched up teams (relative).
+<<<<<<< HEAD
     """
 
     def build_features(self, match_up: MatchUp) -> [Feature]:
