@@ -125,9 +125,10 @@ class Parser:
                     if year in tournaments_games and year >= 2003:
                         rankings = seasons_rankings[year]
 
-                    seasons[year] = Season(year, day_zero, regular_season_games, rankings,
-                                           tournament_games, region_w, region_x, region_y, region_z, seeds,
-                                           teams)
+                    if year not in [2020, 2022]:  # Skip 2020, no use of that season. 2022 later.
+                        seasons[year] = Season(year, day_zero, regular_season_games, rankings,
+                                               tournament_games, region_w, region_x, region_y, region_z, seeds,
+                                               teams)
                 line_count += 1
             self.logger.info(f'Processed {line_count - 1} seasons.')
         return seasons

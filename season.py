@@ -1,7 +1,5 @@
 from typing import Dict
 
-from sklearn.preprocessing import MinMaxScaler
-
 from feature import AbsoluteFeature, RelativeFeature, Feature
 from game import Game
 from classifier import Classifier, SeedsBasedClassifier
@@ -9,6 +7,8 @@ from sample import Sample
 from teams import Team, MatchUp
 from tournament import Tournament
 from seed import Seed
+
+from collections import defaultdict
 
 
 class Season:
@@ -34,7 +34,8 @@ class Season:
     def __init__(self, year: int, day_zero: str, regular_season_games: [Game], rankings: Dict,
                  tournament_games: [Game], region_w: str, region_x: str, region_y: str, region_z: str, seeds: [Seed],
                  teams: [Team]):
-        self.regular_season: RegularSeason = RegularSeason(year, day_zero, regular_season_games)
+        self.qualified_teams_ids: [str] = sorted([seed.team_id for seed in seeds])
+        self.regular_season: RegularSeason = RegularSeason(year, day_zero, regular_season_games, self.qualified_teams_ids)
         self.tournament: Tournament = Tournament(year, tournament_games, region_w, region_x, region_y, region_z, seeds, rankings)
         self.teams: [Team] = teams
 
@@ -170,47 +171,46 @@ class RegularSeason:
     numbers for all seasons.
     """
 
-    def __init__(self, year: int, day_zero: str, regular_season_games: [Game]):
+    def __init__(self, year: int, day_zero: str, regular_season_games: [Game], qualified_teams_ids: [str]):
         self.year: int = year
         self.day_zero: str = day_zero
         self.regular_season_games: [Game] = regular_season_games
+        self.qualified_teams_ids: [str] = qualified_teams_ids
 
-        self.total_points_allowed: Dict[int, int] = {}
-        self.total_points_scored: Dict[int, int] = {}
-        self.number_games_played: Dict[int, int] = {}
+        self.total_points_allowed: Dict[int, int] = defaultdict(lambda: 0)
+        self.total_points_scored: Dict[int, int] = defaultdict(lambda: 0)
+        self.number_games_played: Dict[int, int] = defaultdict(lambda: 0)
 
         for game in self.regular_season_games:
             w_team_id = game.w_team_id
             l_team_id = game.l_team_id
 
-            if w_team_id not in self.total_points_allowed:
-                self.total_points_allowed[w_team_id] = 0
-            if w_team_id not in self.total_points_scored:
-                self.total_points_scored[w_team_id] = 0
-            if w_team_id not in self.number_games_played:
-                self.number_games_played[w_team_id] = 0
-
-            if l_team_id not in self.total_points_allowed:
-                self.total_points_allowed[l_team_id] = 0
-            if l_team_id not in self.total_points_scored:
-                self.total_points_scored[l_team_id] = 0
-            if l_team_id not in self.number_games_played:
-                self.number_games_played[l_team_id] = 0
-
-            self.total_points_allowed[w_team_id] += game.l_score
-            self.total_points_allowed[l_team_id] += game.w_score
-            self.total_points_scored[w_team_id] += game.w_score
-            self.total_points_scored[l_team_id] += game.l_score
-            self.number_games_played[w_team_id] += 1
-            self.number_games_played[l_team_id] += 1
+            # Only consider regular season games involving tournament teams.
+            if w_team_id in self.qualified_teams_ids and l_team_id in self.qualified_teams_ids:
+                self.total_points_allowed[w_team_id] += game.l_score
+                self.total_points_allowed[l_team_id] += game.w_score
+                self.total_points_scored[w_team_id] += game.w_score
+                self.total_points_scored[l_team_id] += game.l_score
+                self.number_games_played[w_team_id] += 1
+                self.number_games_played[l_team_id] += 1
 
         self.average_points_allowed: Dict[int, float] = {}
         for team_id, total_points in self.total_points_allowed.items():
             self.average_points_allowed[team_id] = total_points / self.number_games_played[team_id]
 
+        # In case there is a qualified team which didn't play any other qualified teams during
+        # the regular season, we return an average number of points. Maybe try -1.
+        assert len(self.average_points_allowed) > 0, f"No teams played in {self.year}"
+        teams_average_points_allowed = sum(self.average_points_allowed.values()) / len(self.average_points_allowed)
+        self.average_points_allowed = defaultdict(lambda: teams_average_points_allowed, self.average_points_allowed)
+
         self.average_points_scored: Dict[int, float] = {}
         for team_id, total_points in self.total_points_scored.items():
             self.average_points_scored[team_id] = total_points / self.number_games_played[team_id]
+
+        # Same for points scored.
+        teams_average_points_scored = sum(self.average_points_scored.values()) / len(self.average_points_scored)
+        self.average_points_scored = defaultdict(lambda: teams_average_points_scored, self.average_points_scored)
 
     def get_average_points_allowed(self, match_up: MatchUp) -> Feature:
         return AbsoluteFeature(self.average_points_allowed[match_up.team_1_id],
