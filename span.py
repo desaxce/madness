@@ -2,10 +2,12 @@ from statistics import mean
 from typing import Dict
 
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MinMaxScaler
 
-from classifier import Classifier, FiftyFiftyClassifier, NeuralNetworkClassifier, SeedsBasedClassifier, TreeClassifier
+from classifier import Classifier, FiftyFiftyClassifier, NeuralNetworkClassifier, SeedsBasedClassifier, TreeClassifier, \
+    LogisticRegressionClassifier
 from season import Season
 
 
@@ -59,15 +61,17 @@ class Span:
         layer_size = len(span_features[0])
 
         # Two layers for now.
-        hidden_layer_sizes = (layer_size, 2*layer_size, layer_size)
+        hidden_layer_sizes = (layer_size, layer_size)
 
-        # TODO: Scale features for faster convergence.
-        # TODO: Monitor the learning part with loading bar for Jupyter notebook.
         if self.classifier_type == "MLP":
             mlp_classifier = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=max_iter)
             mlp_classifier.fit(scaled, span_labels)
 
             return NeuralNetworkClassifier(mlp_classifier, scaler)
+        elif self.classifier_type == "LR":
+            lr_classifier = LogisticRegression(C=10)
+            lr_classifier.fit(scaled, span_labels)
+            return LogisticRegressionClassifier(lr_classifier, scaler)
         elif self.classifier_type == "GB":
             gb_classifier = GradientBoostingClassifier(n_estimators=500, learning_rate=0.0001, max_depth=10)
             gb_classifier.fit(scaled, span_labels)
@@ -145,3 +149,18 @@ class Span:
         scores["Average"] = span_score
 
         return scores
+
+    @staticmethod
+    def create_spans(seasons: [Season], train_start: int, train_end: int, test_start: int, test_end: int, classifier_type: str):
+        train_seasons = []
+        for year in range(train_start, train_end + 1):
+            if year != 2020:
+                train_seasons.append(seasons[year])
+        train_span = Span(train_seasons, classifier_type=classifier_type)
+
+        test_seasons = []
+        for year in range(test_start, test_end + 1):
+            if year != 2020:
+                test_seasons.append(seasons[year])
+        test_span = Span(test_seasons)
+        return train_span, test_span

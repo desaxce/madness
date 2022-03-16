@@ -1,8 +1,9 @@
 class Game:
     def __init__(self, year: int, day_num: int, w_team_id: int, w_score: int,
-                 l_team_id: int, l_score: int, w_loc, num_ot, w_fgm, w_fga, w_fgm3,  w_fga3,
-                 w_ftm, w_fta, w_or, w_dr, w_ast, w_to, w_stl, w_blk, w_pf, l_fgm, l_fga, l_fgm3,  l_fga3,
-                 l_ftm, l_fta, l_or, l_dr, l_ast, l_to, l_stl, l_blk, l_pf):
+                 l_team_id: int, l_score: int, w_loc=0, num_ot=0, w_fgm=0, w_fga=0, w_fgm3=0, w_fga3=0,
+                 w_ftm=0, w_fta=0, w_or=0, w_dr=0, w_ast=0, w_to=0, w_stl=0, w_blk=0, w_pf=0, l_fgm=0, l_fga=0,
+                 l_fgm3=0, l_fga3=0,
+                 l_ftm=0, l_fta=0, l_or=0, l_dr=0, l_ast=0, l_to=0, l_stl=0, l_blk=0, l_pf=0):
         self.year: int = year
         self.day_num: int = day_num
         self.w_team_id: int = w_team_id
@@ -12,7 +13,7 @@ class Game:
         self.w_loc = w_loc
         self.num_ot = num_ot
         self.is_w_team_smallest_id = self.w_team_id < self.l_team_id
-        
+
         # Winning team stats.
         self.w_fgm: int = w_fgm
         self.w_fga: int = w_fga
@@ -51,13 +52,27 @@ class Game:
     a same season. Otherwise, you are fine within a single season's NCAA tournament (no two teams play each other twice, 
     because NCAA tournament does not contain a group phase).
     """
+
     def __str__(self) -> str:
         team_1_id, team_2_id = (self.w_team_id, self.l_team_id) if self.is_w_team_smallest_id \
-                          else (self.l_team_id, self.w_team_id)
+            else (self.l_team_id, self.w_team_id)
         return f"{team_1_id}_{team_2_id}"
 
     """
     Returns the outcome of the game (win = 0, loss = 1) from the perspective of the team with smallest ID. 
     """
+
     def outcome(self) -> int:
         return 1 if self.is_w_team_smallest_id else 0
+
+    def get_w_team_offensive_efficiency(self):
+        possessions = (self.w_fga - self.w_or + self.w_to + 0.475 * self.w_fta)
+        if possessions == 0:
+            return 1
+        return self.w_score / possessions
+
+    def get_l_team_offensive_efficiency(self):
+        possessions = (self.l_fga - self.l_or + self.l_to + 0.475 * self.l_fta)
+        if possessions == 0:
+            return 1
+        return self.l_score / possessions
