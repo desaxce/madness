@@ -59,6 +59,20 @@ class Tournament:
         return AbsoluteFeature(self.seeds[match_up.team_1_id].position,
                                self.seeds[match_up.team_2_id].position)
 
+    def get_rankings(self, match_up: MatchUp) -> Feature:
+        if self.year < 2003:
+            team_1_rank = self.seeds[match_up.team_1_id].position
+            team_2_rank = self.seeds[match_up.team_2_id].position
+        else:
+            system_name = "MOR"
+            team_1_rank = self.rankings[system_name][match_up.team_1_id]
+            team_2_rank = self.rankings[system_name][match_up.team_2_id]
+        return AbsoluteFeature(team_1_rank, team_2_rank)
+
+    def get_seeds_diff(self, match_up: MatchUp) -> Feature:
+        diff = self.seeds[match_up.team_1_id].position - self.seeds[match_up.team_2_id].position
+        return RelativeFeature(diff, -1 * diff)
+
     def get_ranking_diff(self, match_up: MatchUp) -> Feature:
         # No ranking data prior to 2003.
         if self.year < 2003:

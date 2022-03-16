@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict
 
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MinMaxScaler
 
@@ -41,6 +42,20 @@ class NeuralNetworkClassifier(Classifier):
         features = [sample.features for sample in samples]
         scaled = self.scaler.transform(features)
         return self.mlp_classifier.predict_proba(scaled)
+
+
+class LogisticRegressionClassifier(Classifier):
+    """
+    Wrapper classifier around an LogisticRegression.
+    """
+    def __init__(self, lr_classifier: LogisticRegression, scaler: MinMaxScaler):
+        self.lr_classifier: LogisticRegression = lr_classifier
+        self.scaler: MinMaxScaler = scaler
+
+    def predict_proba(self, samples: [Sample]):
+        features = [sample.features for sample in samples]
+        scaled = self.scaler.transform(features)
+        return self.lr_classifier.predict_proba(scaled)
 
 
 class TreeClassifier(Classifier):
