@@ -1,4 +1,5 @@
 import csv, logging
+from collections import defaultdict
 from typing import Dict
 
 from game import Game
@@ -8,8 +9,9 @@ from seed import Seed
 
 
 class Parser:
-    def __init__(self):
+    def __init__(self, gender: str = "W"):
         self.path = 'resources/'
+        self.gender = gender
         self.logger = self._get_logger()
 
     @staticmethod
@@ -22,13 +24,16 @@ class Parser:
         # print(regular_seasons_games[2022])
         tournaments_games = self.parse_tournaments_games()
         seasons_seeds = self.parse_seeds()
-        seasons_rankings = self.parse_rankings()
+        seasons_rankings = defaultdict(lambda: {})
+
+        if self.gender == "M":
+            seasons_rankings = self.parse_rankings() #defaultdict(lambda: {})
         seasons = self.parse_seasons(regular_seasons_games, tournaments_games, teams, seasons_seeds, seasons_rankings)
         return seasons, teams
 
     def parse_rankings(self) -> Dict:
         seasons_rankings: Dict = {}
-        with open(self.path + 'MMasseyOrdinals_thruDay128.csv') as rankings_csv:
+        with open(self.path + self.gender + 'MasseyOrdinals.csv') as rankings_csv:
             csv_reader = csv.reader(rankings_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:
@@ -42,7 +47,7 @@ class Parser:
                     rank: int = int(row[4])
 
                     # The final pre-tournament rankings each year have a RankingDayNum of 133
-                    if day_num == 128:
+                    if day_num == 133:
                         if year not in seasons_rankings:
                             seasons_rankings[year] = {}
 
@@ -56,7 +61,7 @@ class Parser:
 
     def parse_seeds(self) -> Dict:
         seasons_seeds: Dict = {}
-        with open(self.path + 'MNCAATourneySeeds.csv') as seeds_csv:
+        with open(self.path + self.gender + 'NCAATourneySeeds.csv') as seeds_csv:
             csv_reader = csv.reader(seeds_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:
@@ -75,7 +80,7 @@ class Parser:
 
     def parse_teams(self) -> [Team]:
         teams: [Team] = []
-        with open(self.path + 'MTeams.csv') as teams_csv:
+        with open(self.path + self.gender + 'Teams.csv') as teams_csv:
             csv_reader = csv.reader(teams_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:
@@ -84,8 +89,11 @@ class Parser:
                 else:
                     team_id: int = int(row[0])
                     team_name: str = row[1]
-                    first_d1_season: int = int(row[2])
-                    last_d1_season: int = int(row[3])
+                    first_d1_season = 0
+                    last_d1_season = 0
+                    if self.gender == "M":
+                        first_d1_season: int = int(row[2])
+                        last_d1_season: int = int(row[3])
                     teams.append(Team(team_id, team_name, first_d1_season, last_d1_season))
                 line_count += 1
             self.logger.info(f'Processed {line_count - 1} teams.')
@@ -94,7 +102,7 @@ class Parser:
     def parse_seasons(self, regular_seasons_games: Dict, tournaments_games: Dict, teams: [Team],
                       seasons_seeds: Dict, seasons_rankings: Dict):
         seasons: Dict[int, Season] = {}
-        with open(self.path + 'MSeasons.csv') as seasons_csv:
+        with open(self.path + self.gender + 'Seasons.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:
@@ -129,7 +137,7 @@ class Parser:
                         seeds = seasons_seeds[year]
 
                     # Ranks only available starting with the 2002-03 season.
-                    if year in tournaments_games and year >= 2003:
+                    if self.gender == "M" and year not in [2020] and year >= 2003:
                         rankings = seasons_rankings[year]
 
                     if year not in [2020]:  # Skip 2020, no use of that season.
@@ -142,7 +150,7 @@ class Parser:
 
     def parse_regular_seasons_games(self):
         games: Dict = {}
-        with open(self.path + 'MRegularSeasonCompactResults.csv') as seasons_csv:
+        with open(self.path + self.gender + 'RegularSeasonCompactResults.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:
@@ -199,7 +207,7 @@ class Parser:
 
     def parse_tournaments_games(self):
         games: Dict = {}
-        with open(self.path + 'MNCAATourneyCompactResults.csv') as seasons_csv:
+        with open(self.path + self.gender +  'NCAATourneyCompactResults.csv') as seasons_csv:
             csv_reader = csv.reader(seasons_csv, delimiter=',')
             line_count: int = 0
             for row in csv_reader:

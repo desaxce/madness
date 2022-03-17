@@ -5,7 +5,7 @@ class Team:
     """
     Represents a division 1 team.
     """
-    def __init__(self, team_id: int, team_name: str, first_d1_season: int, last_d1_season: int):
+    def __init__(self, team_id: int, team_name: str, first_d1_season: int = 0, last_d1_season: int = 0):
         self.id: int = team_id
         self.name: str = team_name
         self.first_d1_season: int = first_d1_season

@@ -65,6 +65,7 @@ class Tournament:
             team_2_rank = self.seeds[match_up.team_2_id].position
         else:
             system_name = "MOR"
+            assert system_name in self.rankings.keys(), f"Can't find ranking for year {self.year}"
             team_1_rank = self.rankings[system_name][match_up.team_1_id]
             team_2_rank = self.rankings[system_name][match_up.team_2_id]
         return AbsoluteFeature(team_1_rank, team_2_rank)

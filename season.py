@@ -37,7 +37,9 @@ class Season:
         self.qualified_teams_ids: [str] = sorted([seed.team_id for seed in seeds])
         self.regular_season: RegularSeason = RegularSeason(year, day_zero, regular_season_games, self.qualified_teams_ids)
         self.tournament: Tournament = Tournament(year, tournament_games, region_w, region_x, region_y, region_z, seeds, rankings)
-        self.teams: [Team] = teams
+        self.teams: Dict[int, Team] = {}
+        for team in teams:
+            self.teams[team.id] = team
 
     """
     Returns float features for the specified match-up.
@@ -81,7 +83,7 @@ class Season:
         win_ratio_diff_feature = self.regular_season.get_win_ratio_diff(match_up)
         gap_avg_diff_feature = self.regular_season.get_gap_average_diff(match_up)
 
-        return [seeds_diff_feature, win_ratio_diff_feature, gap_avg_diff_feature]
+        return [seeds_diff_feature]
 
     """
     Absolute features for a potential match-up in this season's NCAA tournament. 
@@ -90,10 +92,11 @@ class Season:
     def build_absolute_features(self, match_up: MatchUp) -> [AbsoluteFeature]:
         seed_position_feature = self.tournament.get_seeds_positions(match_up)
         # rankings_feature = self.tournament.get_rankings(match_up)
-        win_ratio_feature = self.regular_season.get_win_ratio(match_up)
+        # win_ratio_feature = self.regular_season.get_win_ratio(match_up)
         gap_avg_feature = self.regular_season.get_gap_average(match_up)
+        adjusted_win_pct_feature = self.regular_season.get_adjusted_win_pct(match_up)
 
-        return [seed_position_feature, win_ratio_feature, gap_avg_feature]
+        return [seed_position_feature, adjusted_win_pct_feature, gap_avg_feature]
 
     """
     Returns a labelled data set using the actual tournament games that occurred that season. The output is a tuple

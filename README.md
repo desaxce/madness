@@ -2,6 +2,20 @@
 
 Based on the Kaggle competition [Men's March Mania 2022](https://www.kaggle.com/c/mens-march-mania-2022).
 
+## Install
+
+In a terminal, clone this repository:
+git clone https://github.com/desaxce/madnness
+
+Install conda with python >= 3.8.
+
+Run conda env create -f environment.yml
+
+Install a jupyter lab extension for widgets (needs node and npm):
+jupyter labextension install @jupyter-widgets/jupyterlab-manager
+
+Run jupyter lab and execute the cells in Stage 1.ipynb
+
 ## Goal
 
 After Selection Sunday and before any post-season games are played, give a prediction (winning
